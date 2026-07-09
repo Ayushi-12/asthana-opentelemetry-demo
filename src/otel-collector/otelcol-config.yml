@@ -237,6 +237,20 @@ processors:
           # SANITIZE ALL SPAN NAMES TO PREVENT CARDINALITY EXPLOSION
           - set_semconv_span_name("1.37.0", "original_span_name")
 
+  transform/redact_sensitive:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - set(attributes["redacted"], true) where resource.attributes["data_sensitivity"] == "high" or attributes["sensitivity"] == "high"
+          - keep_keys(attributes, ["redacted"]) where resource.attributes["data_sensitivity"] == "high" or attributes["sensitivity"] == "high"
+    log_statements:
+      - context: log
+        statements:
+          - set(body, "REDACTED") where resource.attributes["data_sensitivity"] == "high" or attributes["sensitivity"] == "high"
+          - set(attributes["redacted"], true) where resource.attributes["data_sensitivity"] == "high" or attributes["sensitivity"] == "high"
+          - keep_keys(attributes, ["redacted"]) where resource.attributes["data_sensitivity"] == "high" or attributes["sensitivity"] == "high"
+
 connectors:
   span_metrics:
 
@@ -244,7 +258,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [resourcedetection, memory_limiter, transform/sanitize_spans, gen_ai_normalizer]
+      processors: [resourcedetection, memory_limiter, transform/sanitize_spans, gen_ai_normalizer, transform/redact_sensitive]
       exporters: [debug, span_metrics]
     metrics:
       receivers: [docker_stats, http_check/frontend-proxy, host_metrics, nginx, otlp, redis, postgresql, prometheus/ad, span_metrics]
@@ -252,7 +266,7 @@ service:
       exporters: [debug]
     logs:
       receivers: [otlp]
-      processors: [resourcedetection, memory_limiter, transform/sanitize_logs]
+      processors: [resourcedetection, memory_limiter, transform/sanitize_logs, transform/redact_sensitive]
       exporters: [debug]
     profiles:
       receivers: [otlp]

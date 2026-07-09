@@ -1,0 +1,43 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: checkout-team-notifications
+    receivers:
+      - uid: checkout_team_email
+        type: email
+        settings:
+          addresses: checkout-alerts@example.com
+  - orgId: 1
+    name: catalog-team-notifications
+    receivers:
+      - uid: catalog_team_email
+        type: email
+        settings:
+          addresses: catalog-alerts@example.com
+  - orgId: 1
+    name: accounting-team-notifications
+    receivers:
+      - uid: accounting_team_email
+        type: email
+        settings:
+          addresses: accounting-alerts@example.com
+
+policies:
+  - orgId: 1
+    receiver: grafana-default-email
+    group_by: ['alertname', 'grafana_folder', 'service_owner']
+    routes:
+      - receiver: checkout-team-notifications
+        object_matchers:
+          - ['service_owner', '=', 'checkout-team']
+      - receiver: catalog-team-notifications
+        object_matchers:
+          - ['service_owner', '=', 'catalog-team']
+      - receiver: accounting-team-notifications
+        object_matchers:
+          - ['service_owner', '=', 'accounting-team']

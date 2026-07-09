@@ -1,0 +1,75 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: ServiceOwnerAlerts
+    folder: OpenTelemetryDemo
+    interval: 1m
+    rules:
+      - uid: service_owner_high_latency
+        title: ServiceOwnerHighLatency
+        condition: threshold
+        data:
+          - refId: latency
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: webstore-metrics
+            model:
+              editorMode: code
+              expr: |-
+                histogram_quantile(
+                  0.95,
+                  sum by (service_name, service_owner, le) (
+                    rate(
+                      http_server_request_duration_seconds_bucket{
+                        service_namespace="opentelemetry-demo"
+                      }[5m]
+                    )
+                  )
+                )
+              instant: true
+              interval: ""
+              intervalMs: 1000
+              legendFormat: "{{service_name}} ({{service_owner}})"
+              maxDataPoints: 43200
+              range: false
+              refId: latency
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - latency
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: latency
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: threshold
+              type: threshold
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          description: |-
+            Service {{ $labels.service_name }} owned by {{ $labels.service_owner }} has high latency.
+            Current value: {{ .Value | humanizeDuration }}.
+          summary: High latency for {{ $labels.service_name }}
+        labels:
+          severity: warning
